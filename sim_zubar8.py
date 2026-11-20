@@ -96,7 +96,7 @@ OFF_TOPIC_REPLY = (
     "isključivo oko informacija o ordinaciji i zakazivanja pregleda."
 )
 
-WHISPER_PROMPT = (
+WHISPER_PROMPT = os.getenv("AIVA_ASR_PROMPT", "").strip() or (
     "Stomatološka ordinacija Osmeh. Zakazivanje pregleda. "
     "Danas, sutra, prekosutra, za tri dana, ponedeljak, utorak, sreda, četvrtak, petak, subota, nedelja. "
     "U devet, u deset i trideset, u dvanaest, u četrnaest, u petnaest i trideset. "
