@@ -35,12 +35,24 @@ python3 -u asterisk_adapter2.py
 
 ### **V2** 
 
-*`sim_zubar8_fixed.py` update da se pokrece ne znam ni ja sta*
+*V2: `sim_zubar8.py` agent preko SIP transporta u `asterisk_adapter_v8.py`.*
 
 ```bash
-LLM_PROVIDER=local AIVA_TTS=piper AIVA_LIVE_BOOKING=0   python3 -u ./sim_zubar8_fixed.py
+LLM_PROVIDER=local AIVA_TTS=piper AIVA_LIVE_BOOKING=0 python3 -u ./asterisk_adapter_v8.py
 ```
 
+## See all already downloaded models:
+
+```bash
+du -sh ~/.cache/huggingface/hub/models--*
+124K	/home/master/.cache/huggingface/hub/models--k2-fsa--OmniVoice
+4.5M	/home/master/.cache/huggingface/hub/models--openai--whisper-large-v3-turbo
+4.4G	/home/master/.cache/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct-GGUF
+8.4G	/home/master/.cache/huggingface/hub/models--Qwen--Qwen2.5-Coder-14B-Instruct-GGUF
+4.4G	/home/master/.cache/huggingface/hub/models--Qwen--Qwen2.5-Coder-7B-Instruct-GGUF
+12K	/home/master/.cache/huggingface/hub/models--Qwen--Qwen2.5-Omni-7B
+2.4G	/home/master/.cache/huggingface/hub/models--unsloth--Qwen3-4B-Instruct-2507-GGUF
+```
 
 # Todo:
 Ovde vidi i sta treba da se objasni i pregleda [TODO](./todo)

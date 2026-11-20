@@ -6,7 +6,6 @@ import json
 import os
 import shlex
 import urllib.request
-import uuid
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -34,26 +33,8 @@ def main():
     log_text = os.getenv('AIVA_LOG_TEXT', '0') == '1'
     sip.agent = agent
     sip._EXTRACT_TAKES_STATE = len(inspect.signature(agent.extract).parameters) >= 3
-    agent.HTTP_TIMEOUT = 12
     if os.getenv('AIVA_PIPER_EXTRA'):
         agent.PIPER_EXTRA = shlex.split(os.environ['AIVA_PIPER_EXTRA'])
-
-    def transcribe_sr(wav):
-        boundary = 'aiva-' + uuid.uuid4().hex
-        fields = {'language': 'sr', 'response_format': 'json', 'temperature': '0'}
-        prompt = os.getenv('AIVA_ASR_PROMPT', '').strip()
-        if prompt:
-            fields['prompt'] = prompt
-        body = bytearray()
-        for name, value in fields.items():
-            body.extend(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode())
-        body.extend(f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="input.wav"\r\nContent-Type: audio/wav\r\n\r\n'.encode())
-        body.extend(wav.read_bytes())
-        body.extend(f'\r\n--{boundary}--\r\n'.encode())
-        request = urllib.request.Request(agent.WHISPER_URL, data=body, headers={'Content-Type': f'multipart/form-data; boundary={boundary}'})
-        with urllib.request.urlopen(request, timeout=agent.HTTP_TIMEOUT) as response:
-            text = json.load(response).get('text')
-        return text.strip() if isinstance(text, str) else ''
 
     def nvidia_llm(messages, json_mode=False, max_tokens=160):
         payload = {'model': model, 'messages': messages, 'temperature': 0, 'max_tokens': max_tokens, 'stream': False}
@@ -93,7 +74,6 @@ def main():
         await player.wait_idle()
         await asyncio.sleep(0.15)
 
-    agent.transcribe = transcribe_sr
     if provider == 'nvidia':
         agent.llm = nvidia_llm
     sip.print = adapter_print
