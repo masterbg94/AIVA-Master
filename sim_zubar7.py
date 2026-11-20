@@ -611,7 +611,7 @@ def say_slots(target_date: date, slots: list[str]) -> str:
     return f"{day_text} u " + ", ".join(items[:-1]) + " ili u " + items[-1]
 
 
-def http_json(url: str, payload: dict) -> dict:
+# def http_json(url: str, payload: dict) -> dict:
     headers = {"Content-Type": "application/json"}
     if LLM_API_KEY:
         headers["Authorization"] = f"Bearer {LLM_API_KEY}"
@@ -622,7 +622,7 @@ def http_json(url: str, payload: dict) -> dict:
         return json.load(response)
 
 
-def llm(messages: list[dict], json_mode: bool = False, max_tokens: int = 160) -> str:
+# def llm(messages: list[dict], json_mode: bool = False, max_tokens: int = 160) -> str:
     payload = {
         "model": "local",
         "messages": messages,
@@ -633,7 +633,92 @@ def llm(messages: list[dict], json_mode: bool = False, max_tokens: int = 160) ->
         payload["response_format"] = {"type": "json_object"}
     result = http_json(LLM_URL, payload)
     return result["choices"][0]["message"]["content"].strip()
+def http_json(url: str, payload: dict) -> dict:
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
 
+    if os.getenv("LLM_PROVIDER", "local") == "nvidia":
+        api_key = os.getenv("NVIDIA_API_KEY", "").strip()
+        if not api_key:
+            raise RuntimeError("Nedostaje NVIDIA_API_KEY.")
+        headers["Authorization"] = f"Bearer {api_key}"
+        timeout = 12
+    else:
+        if LLM_API_KEY:
+            headers["Authorization"] = f"Bearer {LLM_API_KEY}"
+        timeout = HTTP_TIMEOUT
+
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as response:
+        return json.load(response)
+
+
+def llm(messages: list[dict], json_mode: bool = False,
+        max_tokens: int = 160) -> str:
+    provider = os.getenv("LLM_PROVIDER", "local")
+    if provider not in {"local", "nvidia"}:
+        raise ValueError("LLM_PROVIDER mora biti local ili nvidia.")
+
+    payload = {
+        "model": "local",
+        "messages": messages,
+        "temperature": 0,
+        "max_tokens": max_tokens,
+        "stream": False,
+    }
+
+    if provider == "nvidia":
+        # Fiksna adresa: NVIDIA ključ se ne šalje na lokalni LLM_URL.
+        url = "https://integrate.api.nvidia.com/v1/chat/completions"
+        payload["model"] = "nvidia/nemotron-3.5-bolt-e4b"
+        payload["chat_template_kwargs"] = {"enable_thinking": False}
+
+        if json_mode:
+            fields = ("date_iso", "time", "name", "phone")
+            nullable_string = {"type": ["string", "null"]}
+
+            payload["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "call_intent",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "intent": {
+                                "type": "string",
+                                "enum": sorted(ALLOWED_INTENTS),
+                            },
+                            **{field: nullable_string for field in fields},
+                            "confirm": {"enum": ["yes", "no", None]},
+                        },
+                        "required": ["intent", *fields, "confirm"],
+                        "additionalProperties": False,
+                    },
+                },
+            }
+    else:
+        url = LLM_URL
+        if json_mode:
+            payload["response_format"] = {"type": "json_object"}
+
+    result = http_json(url, payload)
+    choice = result["choices"][0]
+
+    if choice.get("finish_reason") == "length":
+        raise RuntimeError("LLM odgovor je prekinut zbog max_tokens.")
+
+    content = choice["message"].get("content")
+    if not isinstance(content, str) or not content.strip():
+        raise RuntimeError("LLM nije vratio tekstualni odgovor.")
+
+    return content.strip()
 
 def build_calendar_reference() -> str:
     now = datetime.now(TZ)
